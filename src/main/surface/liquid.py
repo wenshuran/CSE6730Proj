@@ -1,6 +1,9 @@
 import numpy as np
+from ..utils import visualize
+import matplotlib.pyplot as plt
+
 class liquid:
-    def __init__(self, height, width, dampening=0.95):
+    def __init__(self):
         # self.height = height
         # self.width = width
         # self.dampening = 0.95
@@ -24,11 +27,6 @@ class liquid:
         self.use_beta = True  # True if you want variation in coriolis
         self.use_source = False  # True if you want mass source into the domain
         self.use_sink = False  # True if you want mass sink out of the domain
-        self.param_string = "\n================================================================"
-        self.param_string += "\nuse_coriolis = {}\nuse_beta = {}".format(self.use_coriolis, self.use_beta)
-        self.param_string += "\nuse_friction = {}\nuse_wind = {}".format(self.use_friction, self.use_wind)
-        self.param_string += "\nuse_source = {}\nuse_sink = {}".format(self.use_source, self.use_sink)
-        self.param_string += "\ng = {:g}\nH = {:g}".format(self.g, self.H)
 
         # --------------- Computational prameters ---------------
         self.N_x = 150  # Number of grid points in x-direction
@@ -41,19 +39,16 @@ class liquid:
         X, Y = np.meshgrid(self.x, self.y)  # Meshgrid for plotting
         self.X = np.transpose(X)  # To get plots right
         self.Y = np.transpose(Y)  # To get plots right
-        self.param_string += "\ndx = {:.2f} km\ndy = {:.2f} km\ndt = {:.2f} s".format(self.dx, self.dy, self.dt)
 
         # Define friction array if friction is enabled.
         if (self.use_friction is True):
             kappa_0 = 1 / (5 * 24 * 3600)
             self.kappa = np.ones((self.N_x, self.N_y)) * kappa_0
-            self.param_string += "\nkappa = {:g}\nkappa/beta = {:g} km".format(kappa_0, kappa_0 / (self.beta * 1000))
 
         # Define wind stress arrays if wind is enabled.
         if (self.use_wind is True):
             self.tau_x = -self.tau_0 * np.cos(np.pi * self.y / self.L_y) * 0
             self.tau_y = np.zeros((1, len(self.x)))
-            self.param_string += "\ntau_0 = {:g}\nrho_0 = {:g} km".format(self.tau_0, self.rho_0)
 
         # Define coriolis array if coriolis is enabled.
         if (self.use_coriolis is True):
@@ -67,14 +62,6 @@ class liquid:
             self.alpha = self.dt * self.f  # Parameter needed for coriolis scheme
             self.beta_c = self.alpha ** 2 / 4  # Parameter needed for coriolis scheme
 
-            self.param_string += "\nf_0 = {:g}".format(self.f_0)
-            self.param_string += "\nMax alpha = {:g}\n".format(self.alpha.max())
-            self.param_string += "\nRossby radius: {:.1f} km".format(self.L_R / 1000)
-            self.param_string += "\nRossby number: {:g}".format(np.sqrt(self.g * self.H) / (self.f_0 * self.L_x))
-            self.param_string += "\nLong Rossby wave speed: {:.3f} m/s".format(self.c_R)
-            self.param_string += "\nLong Rossby transit time: {:.2f} days".format(self.L_x / (self.c_R * 24 * 3600))
-            self.param_string += "\n================================================================\n"
-
         # Define source array if source is enabled.
         if (self.use_source):
             sigma = np.zeros((self.N_x, self.N_y))
@@ -82,13 +69,12 @@ class liquid:
 
         # Define source array if source is enabled.
         if (self.use_sink is True):
-            w = np.ones((self.N_x, self.N_y)) * sigma.sum() / (self.N_x * self.N_y)
+            self.w = np.ones((self.N_x, self.N_y)) * self.sigma.sum() / (self.N_x * self.N_y)
 
         # Write all parameters out to file.
-        with open("param_output.txt", "w") as output_file:
-            output_file.write(self.param_string)
+        # with open("param_output.txt", "w") as output_file:
+        #     output_file.write(self.param_string)
 
-        print(self.param_string)  # Also print parameters to screen
         # ============================= Parameter stuff done ===============================
 
         # ==================================================================================
@@ -98,13 +84,6 @@ class liquid:
         self.v_n = np.zeros((self.N_x, self.N_y))  # To hold v at current time step
         self.eta_n = np.zeros((self.N_x, self.N_y))  # To hold eta at current time step
 
-        # Temporary variables (each time step) for upwind scheme in eta equation
-        self.h_e = np.zeros((self.N_x, self.N_y))
-        self.h_w = np.zeros((self.N_x, self.N_y))
-        self.h_n = np.zeros((self.N_x, self.N_y))
-        self.h_s = np.zeros((self.N_x, self.N_y))
-        self.uhwe = np.zeros((self.N_x, self.N_y))
-        self.vhns = np.zeros((self.N_x, self.N_y))
 
         # Initial conditions for u and v.
         self.u_n[:, :] = 0.0  # Initial condition for u
@@ -113,22 +92,16 @@ class liquid:
         self.v_n[:, -1] = 0.0  # Ensuring initial v satisfy BC
 
         # Initial condition for eta.
-        # eta_n[:, :] = np.sin(4*np.pi*X/L_y) + np.sin(4*np.pi*Y/L_y)
-        # eta_n = np.exp(-((X-0)**2/(2*(L_R)**2) + (Y-0)**2/(2*(L_R)**2)))
         self.eta_n = np.exp(-((self.X - self.L_x / 2.7) ** 2 / (2 * (0.05E+6) ** 2) + (self.Y - self.L_y / 4) ** 2 / (2 * (0.05E+6) ** 2)))
-        # eta_n[int(3*N_x/8):int(5*N_x/8),int(3*N_y/8):int(5*N_y/8)] = 1.0
-        # eta_n[int(6*N_x/8):int(7*N_x/8),int(6*N_y/8):int(7*N_y/8)] = 1.0
-        # eta_n[int(3*N_x/8):int(5*N_x/8), int(13*N_y/14):] = 1.0
-        # eta_n[:, :] = 0.0
 
         # viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
 
         # Sampling variables.
-        self.eta_list = list();
-        self.u_list = list();
+        self.eta_list = list()
+        self.u_list = list()
         self.v_list = list()  # Lists to contain eta and u,v for animation
-        self.hm_sample = list();
-        self.ts_sample = list();
+        self.hm_sample = list()
+        self.ts_sample = list()
         self.t_sample = list()  # Lists for Hovmuller and time series
         self.hm_sample.append(self.eta_n[:, int(self.N_y / 2)])  # Sample initial eta in middle of domain
         self.ts_sample.append(self.eta_n[int(self.N_x / 2), int(self.N_y / 2)])  # Sample initial eta at center of domain
@@ -149,8 +122,17 @@ class liquid:
     def shape(self):
         return (self.height, self.width)
     
-    def inspect(self):
-        return self.value
+    def inspect_eta(self):
+        eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+        plt.show()
+        return
+
+    def inspect_eta(self):
+        eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+        plt.show()
+        return
+
+
     
     def take_drops(self, drops):
         # TODO: if drops is only one drop object instead of array of drops
@@ -216,28 +198,36 @@ class liquid:
         u_np1[-1, :] = 0.0  # Eastern boundary condition
         # -------------------------- Done with u and v -----------------------------
 
+        # Temporary variables (each time step) for upwind scheme in eta equation
+        h_e = np.zeros((self.N_x, self.N_y))
+        h_w = np.zeros((self.N_x, self.N_y))
+        h_n = np.zeros((self.N_x, self.N_y))
+        h_s = np.zeros((self.N_x, self.N_y))
+        uhwe = np.zeros((self.N_x, self.N_y))
+        vhns = np.zeros((self.N_x, self.N_y))
+
         # --- Computing arrays needed for the upwind scheme in the eta equation.----
-        self.h_e[:-1, :] = np.where(u_np1[:-1, :] > 0, self.eta_n[:-1, :] + self.H, self.eta_n[1:, :] + self.H)
-        self.h_e[-1, :] = self.eta_n[-1, :] + self.H
+        h_e[:-1, :] = np.where(u_np1[:-1, :] > 0, self.eta_n[:-1, :] + self.H, self.eta_n[1:, :] + self.H)
+        h_e[-1, :] = self.eta_n[-1, :] + self.H
 
-        self.h_w[0, :] = self.eta_n[0, :] + self.H
-        self.h_w[1:, :] = np.where(u_np1[:-1, :] > 0, self.eta_n[:-1, :] + self.H, self.eta_n[1:, :] + self.H)
+        h_w[0, :] = self.eta_n[0, :] + self.H
+        h_w[1:, :] = np.where(u_np1[:-1, :] > 0, self.eta_n[:-1, :] + self.H, self.eta_n[1:, :] + self.H)
 
-        self.h_n[:, :-1] = np.where(v_np1[:, :-1] > 0, self.eta_n[:, :-1] + self.H, self.eta_n[:, 1:] + self.H)
-        self.h_n[:, -1] = self.eta_n[:, -1] + self.H
+        h_n[:, :-1] = np.where(v_np1[:, :-1] > 0, self.eta_n[:, :-1] + self.H, self.eta_n[:, 1:] + self.H)
+        h_n[:, -1] = self.eta_n[:, -1] + self.H
 
-        self.h_s[:, 0] = self.eta_n[:, 0] + self.H
-        self.h_s[:, 1:] = np.where(v_np1[:, :-1] > 0, self.eta_n[:, :-1] + self.H, self.eta_n[:, 1:] + self.H)
+        h_s[:, 0] = self.eta_n[:, 0] + self.H
+        h_s[:, 1:] = np.where(v_np1[:, :-1] > 0, self.eta_n[:, :-1] + self.H, self.eta_n[:, 1:] + self.H)
 
-        self.uhwe[0, :] = u_np1[0, :] * self.h_e[0, :]
-        self.uhwe[1:, :] = u_np1[1:, :] * self.h_e[1:, :] - u_np1[:-1, :] * self.h_w[1:, :]
+        uhwe[0, :] = u_np1[0, :] * h_e[0, :]
+        uhwe[1:, :] = u_np1[1:, :] * h_e[1:, :] - u_np1[:-1, :] * h_w[1:, :]
 
-        self.vhns[:, 0] = v_np1[:, 0] * self.h_n[:, 0]
-        self.vhns[:, 1:] = v_np1[:, 1:] * self.h_n[:, 1:] - v_np1[:, :-1] * self.h_s[:, 1:]
+        vhns[:, 0] = v_np1[:, 0] * h_n[:, 0]
+        vhns[:, 1:] = v_np1[:, 1:] * h_n[:, 1:] - v_np1[:, :-1] * h_s[:, 1:]
         # ------------------------- Upwind computations done -------------------------
 
         # ----------------- Computing eta values at next time step -------------------
-        eta_np1[:, :] = self.eta_n[:, :] - self.dt * (self.uhwe[:, :] / self.dx + self.vhns[:, :] / self.dy)  # Without source/sink
+        eta_np1[:, :] = self.eta_n[:, :] - self.dt * (uhwe[:, :] / self.dx + vhns[:, :] / self.dy)  # Without source/sink
 
         # Add source term if enabled.
         if (self.use_source is True):
@@ -248,9 +238,9 @@ class liquid:
             eta_np1[:, :] -= self.dt * self.w
         # ----------------------------- Done with eta --------------------------------
 
-        u_n = np.copy(u_np1)  # Update u for next iteration
-        v_n = np.copy(v_np1)  # Update v for next iteration
-        eta_n = np.copy(eta_np1)  # Update eta for next iteration
+        self.u_n = np.copy(u_np1)  # Update u for next iteration
+        self.v_n = np.copy(v_np1)  # Update v for next iteration
+        self.eta_n = np.copy(eta_np1)  # Update eta for next iteration
 
         # Samples for Hovmuller diagram and spectrum every sample_interval time step.
         # if (time_step % sample_interval == 0):
@@ -266,6 +256,7 @@ class liquid:
         #     u_list.append(u_n)
         #     v_list.append(v_n)
         #     eta_list.append(eta_n)
+        return self.u_n, self.v_n, self.eta_n
         
         
     def update_n_step(self, n=1):
