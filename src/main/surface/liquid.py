@@ -128,7 +128,7 @@ class liquid:
         return
 
     def inspect_eta(self):
-        eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
         plt.show()
         return
 
