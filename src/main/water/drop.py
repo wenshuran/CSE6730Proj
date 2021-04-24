@@ -1,12 +1,12 @@
 class drop:
-    def __init__(self, x, y, scale=1.0, purity=1.0):
-        scale = max(scale, 0.0)
-        scale = min(scale, 1.0)
+    def __init__(self, x, y, width=20, amplitude=1.0):
         self.x = x
         self.y = y
-        self.amplitude = 255 * scale
+        self.width = width
+        self.amplitude = amplitude
+        
         # TODO (low priority): 
         # purity: when drop is not pure water, surface's dampening factor
         # gets affected locally?
-        self.purity = purity
+        # self.__purity = purity
         

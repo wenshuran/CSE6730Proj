@@ -1,39 +1,40 @@
 import numpy as np
 from ..utils import visualize
 import matplotlib.pyplot as plt
+import ffmpeg
+from scipy.stats import multivariate_normal
+
 
 class liquid:
-    def __init__(self):
-        # self.height = height
-        # self.width = width
-        # self.dampening = 0.95
-        # self.value = np.zeros((self.height, self.width), dtype=float)
-        # TODO: store self.value in self.history everytime it gets update
-        # scipy.sparse may be needed to save memory
-        # self.history = np.array([])
+    def __init__(self, N_x=150, N_y=150):
 
         # --------------- Physical prameters ---------------
         self.L_x = 1E+6  # Length of domain in x-direction
         self.L_y = 1E+6  # Length of domain in y-direction
         self.g = 9.81  # Acceleration of gravity [m/s^2]
         self.H = 100  # Depth of fluid [m]
-        self.f_0 = 1E-4  # Fixed part ofcoriolis parameter [1/s]
+        self.f_0 = 4E-4  # Fixed part ofcoriolis parameter [1/s]
         self.beta = 2E-11  # gradient of coriolis parameter [1/ms]
         self.rho_0 = 1024.0  # Density of fluid [kg/m^3)]
         self.tau_0 = 0.1  # Amplitude of wind stress [kg/ms^2]
-        self.use_coriolis = True  # True if you want coriolis force
+        self.use_coriolis = False  # True if you want coriolis force
         self.use_friction = False  # True if you want bottom friction
         self.use_wind = False  # True if you want wind stress
-        self.use_beta = True  # True if you want variation in coriolis
+        self.use_beta = False  # True if you want variation in coriolis
         self.use_source = False  # True if you want mass source into the domain
         self.use_sink = False  # True if you want mass sink out of the domain
+        self.param_string = "\n================================================================"
+        self.param_string += "\nuse_coriolis = {}\nuse_beta = {}".format(self.use_coriolis, self.use_beta)
+        self.param_string += "\nuse_friction = {}\nuse_wind = {}".format(self.use_friction, self.use_wind)
+        self.param_string += "\nuse_source = {}\nuse_sink = {}".format(self.use_source, self.use_sink)
+        self.param_string += "\ng = {:g}\nH = {:g}".format(self.g, self.H)
 
         # --------------- Computational prameters ---------------
-        self.N_x = 150  # Number of grid points in x-direction
-        self.N_y = 150  # Number of grid points in y-direction
+        self.N_x = N_x  # Number of grid points in x-direction
+        self.N_y = N_y  # Number of grid points in y-direction
         self.dx = self.L_x / (self.N_x - 1)  # Grid spacing in x-direction
         self.dy = self.L_y / (self.N_y - 1)  # Grid spacing in y-direction
-        self.dt = 0.1 * min(self.dx, self.dy) / np.sqrt(self.g * self.H)  # Time step (defined from the CFL condition)
+        self.dt = 0.5 * min(self.dx, self.dy) / np.sqrt(self.g * self.H)  # Time step (defined from the CFL condition)
         self.x = np.linspace(-self.L_x / 2, self.L_x / 2, self.N_x)  # Array with x-points
         self.y = np.linspace(-self.L_y / 2, self.L_y / 2, self.N_y)  # Array with y-points
         X, Y = np.meshgrid(self.x, self.y)  # Meshgrid for plotting
@@ -71,9 +72,8 @@ class liquid:
         if (self.use_sink is True):
             self.w = np.ones((self.N_x, self.N_y)) * self.sigma.sum() / (self.N_x * self.N_y)
 
-        # Write all parameters out to file.
-        # with open("param_output.txt", "w") as output_file:
-        #     output_file.write(self.param_string)
+        # print out starting parameters
+        print("Starting parameters: \n" + self.param_string)
 
         # ============================= Parameter stuff done ===============================
 
@@ -91,28 +91,23 @@ class liquid:
         self.u_n[-1, :] = 0.0  # Ensuring initial u satisfy BC
         self.v_n[:, -1] = 0.0  # Ensuring initial v satisfy BC
 
-        # Initial condition for eta.
-        self.eta_n = np.exp(-((self.X - self.L_x / 2.7) ** 2 / (2 * (0.05E+6) ** 2) + (self.Y - self.L_y / 4) ** 2 / (2 * (0.05E+6) ** 2)))
-
-        # viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
-
         # Sampling variables.
         self.eta_list = list()
         self.u_list = list()
         self.v_list = list()  # Lists to contain eta and u,v for animation
-        self.hm_sample = list()
-        self.ts_sample = list()
-        self.t_sample = list()  # Lists for Hovmuller and time series
-        self.hm_sample.append(self.eta_n[:, int(self.N_y / 2)])  # Sample initial eta in middle of domain
-        self.ts_sample.append(self.eta_n[int(self.N_x / 2), int(self.N_y / 2)])  # Sample initial eta at center of domain
-        self.t_sample.append(0.0)  # Add initial time to t-samples
+#         self.hm_sample = list()
+#         self.ts_sample = list()
+#         self.t_sample = list()  # Lists for Hovmuller and time series
+#         self.hm_sample.append(self.eta_n[:, int(self.N_y / 2)])  # Sample initial eta in middle of domain
+#         self.ts_sample.append(self.eta_n[int(self.N_x / 2), int(self.N_y / 2)])  # Sample initial eta at center of domain
+#         self.t_sample.append(0.0)  # Add initial time to t-samples
         self.anim_interval = 20  # How often to sample for time series
         self.sample_interval = 1000  # How often to sample for time series
         # =============== Done with setting up arrays and initial conditions ===============
         
         
     def clear(self):
-        self.value = np.zeros(self.height, self.width)
+        self.eta_n = np.zeros(self.N_x, self.N_y)
         return self.value
     
     def clear_region(self, hstart, wstart, hend, wend):
@@ -120,19 +115,39 @@ class liquid:
         pass
         
     def shape(self):
-        return (self.height, self.width)
+        return (self.N_x, self.N_y)
     
-    def inspect_eta(self):
-        eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+    def display_2d(self):
+        visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
         plt.show()
         return
-
-    def inspect_eta(self):
+    
+    def display_field(self):
         quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
         plt.show()
+        return 
+    
+    def animation_2d(self):
+        eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+        plt.show()
+        return 
+    
+    def animation_3d(self):  
+        eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
+        return eta_surf_anim
+
+    def take_one_drop(self, drop):
+        x = np.linspace(0,self.N_x, self.N_x)
+        y = np.linspace(0,self.N_y, self.N_y)
+        X, Y = np.meshgrid(x,y)
+        pos = np.empty(X.shape + (2,))
+        pos[:, :, 0] = X; pos[:, :, 1] = Y
+
+        F = multivariate_normal(mean=[drop.x, drop.y],cov=[[drop.width, 0], [0, drop.width]])
+        Z = F.pdf(pos) * drop.amplitude
+
+        self.eta_n = np.add(self.eta_n, Z)
         return
-
-
     
     def take_drops(self, drops):
         # TODO: if drops is only one drop object instead of array of drops
@@ -155,21 +170,11 @@ class liquid:
         """
         for drop in drops:
             try: 
-                self.value[drop.x][drop.y] = drop.amplitude
+                self.take_one_drop(drop)
             except:
                 raise Exception("can not set drop at {},{} with value {}".format(drop.x, drop.y, drop.amplitude))
                 
-    def update_one_step(self):
-        # TODO: 4 edges with special care
-        # TODO: vectorization to speed things up
-        # curr = np.copy(self.inspect())
-        # nxt = np.copy(self.inspect())
-        # for i in range(1, self.height - 1):
-        #     for j in range(1, self.width - 1):
-        #         nxt[i][j] = (curr[i-1][j]+curr[i+1][j]+curr[i][j-1]+curr[i][j+1])/2 - curr[i][j]
-        #         nxt[i][j] = nxt[i][j] * self.dampening
-        # self.value = nxt
-        # return self.inspect()
+    def __update_one_step(self):
 
         u_np1 = np.zeros((self.N_x, self.N_y))  # To hold u at next time step
         v_np1 = np.zeros((self.N_x, self.N_y))  # To hold v at enxt time step
@@ -244,38 +249,28 @@ class liquid:
 
         # Samples for Hovmuller diagram and spectrum every sample_interval time step.
         # if (time_step % sample_interval == 0):
-        #     hm_sample.append(eta_n[:, int(N_y / 2)])  # Sample middle of domain for Hovmuller
-        #     ts_sample.append(eta_n[int(N_x / 2), int(N_y / 2)])  # Sample center point for spectrum
-        #     t_sample.append(time_step * dt)  # Keep track of sample times.
+#         hm_sample.append(eta_n[:, int(N_y / 2)])  # Sample middle of domain for Hovmuller
+#         ts_sample.append(eta_n[int(N_x / 2), int(N_y / 2)])  # Sample center point for spectrum
+#         t_sample.append(time_step * dt)  # Keep track of sample times.
         #
         # # Store eta and (u, v) every anin_interval time step for animations.
         # if (time_step % anim_interval == 0):
-        #     print("Time: \t{:.2f} hours".format(time_step * dt / 3600))
-        #     print("Step: \t{} / {}".format(time_step, max_time_step))
-        #     print("Mass: \t{}\n".format(np.sum(eta_n)))
-        #     u_list.append(u_n)
-        #     v_list.append(v_n)
-        #     eta_list.append(eta_n)
-        return self.u_n, self.v_n, self.eta_n
+#         print("Time: \t{:.2f} hours".format(time_step * dt / 3600))
+#         print("Step: \t{} / {}".format(time_step, max_time_step))
+#         print("Mass: \t{}\n".format(np.sum(eta_n)))
+        self.u_list.append(self.u_n)
+        self.v_list.append(self.v_n)
+        self.eta_list.append(self.eta_n)
+        
+#         return self.u_n, self.v_n, self.eta_n
+        return
         
         
     def update_n_step(self, n=1):
         for i in range(n):
-            self.update_one_step()
-        return self.inspect()
+            self.__update_one_step()
+        return
     
-    def record(self):
-        # TODO: store self.value in self.history everytime it gets update
-        # scipy.sparse may be needed to save memory
-        pass
-    
-    def history(n=None):
-        # TODO: retrieve records at step n
-        # if n is None, retrieve all records
-        pass
-        # if n is not None:
-        #     return self.history(n)
-        # return self.history()
     
         
         
