@@ -2,6 +2,7 @@ import numpy as np
 from ..utils import visualize
 import matplotlib.pyplot as plt
 import ffmpeg
+from scipy.stats import multivariate_normal
 
 
 class liquid:
@@ -90,57 +91,65 @@ class liquid:
         self.u_n[-1, :] = 0.0  # Ensuring initial u satisfy BC
         self.v_n[:, -1] = 0.0  # Ensuring initial v satisfy BC
 
-        # Initial condition for eta.
-#         self.eta_n = np.exp(-((self.X - self.L_x / 2.7) ** 2 / (2 * (0.05E+6) ** 2) + (self.Y - self.L_y / 4) ** 2 / (2 * (0.05E+6) ** 2)))
-        self.eta_n[int(N_x/2-2):int(N_x/2+2), int(N_y/2-2):int(N_y/2+2)] = 1.0
-
-        # viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
 
         # Sampling variables.
         self.eta_list = list()
         self.u_list = list()
         self.v_list = list()  # Lists to contain eta and u,v for animation
-        self.hm_sample = list()
-        self.ts_sample = list()
-        self.t_sample = list()  # Lists for Hovmuller and time series
-        self.hm_sample.append(self.eta_n[:, int(self.N_y / 2)])  # Sample initial eta in middle of domain
-        self.ts_sample.append(self.eta_n[int(self.N_x / 2), int(self.N_y / 2)])  # Sample initial eta at center of domain
-        self.t_sample.append(0.0)  # Add initial time to t-samples
+#         self.hm_sample = list()
+#         self.ts_sample = list()
+#         self.t_sample = list()  # Lists for Hovmuller and time series
+#         self.hm_sample.append(self.eta_n[:, int(self.N_y / 2)])  # Sample initial eta in middle of domain
+#         self.ts_sample.append(self.eta_n[int(self.N_x / 2), int(self.N_y / 2)])  # Sample initial eta at center of domain
+#         self.t_sample.append(0.0)  # Add initial time to t-samples
         self.anim_interval = 20  # How often to sample for time series
         self.sample_interval = 1000  # How often to sample for time series
         # =============== Done with setting up arrays and initial conditions ===============
-        
-        
+
+
     def clear(self):
-        self.value = np.zeros(self.height, self.width)
+        self.eta_n = np.zeros(self.N_x, self.N_y)
         return self.value
-    
+
     def clear_region(self, hstart, wstart, hend, wend):
         # TODO: clear rectangular region
         pass
-        
+
     def shape(self):
-        return (self.height, self.width)
-    
-    def inspect_eta(self):
+        return (self.N_x, self.N_y)
+
+    def display_2d(self):
+        visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
+        plt.show()
+        return
+
+    def display_field(self):
+        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
+        plt.show()
+        return
+
+    def animation_2d(self):
         eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
         plt.show()
         return
 
-    def inspect_quiv(self):
-        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
-        plt.show()
-        return
-    
-    def inspect(self):
-        visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
-#         eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+    def animation_3d(self):
         eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
-        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
-        plt.show()
+        return eta_surf_anim
 
+    def take_one_drop(self, drop):
+        x = np.linspace(0,self.N_x, self.N_x)
+        y = np.linspace(0,self.N_y, self.N_y)
+        X, Y = np.meshgrid(x,y)
+        pos = np.empty(X.shape + (2,))
+        pos[:, :, 0] = X; pos[:, :, 1] = Y
 
-    
+        F = multivariate_normal(mean=[drop.x, drop.y],cov=[[drop.width, 0], [0, drop.width]])
+        Z = F.pdf(pos) * drop.amplitude
+
+        self.eta_n = np.add(self.eta_n, Z)
+        return
+
     def take_drops(self, drops):
         # TODO: if drops is only one drop object instead of array of drops
         # automatically handle the case
@@ -161,22 +170,12 @@ class liquid:
         /water/drop.py
         """
         for drop in drops:
-            try: 
-                self.value[drop.x][drop.y] = drop.amplitude
+            try:
+                self.take_one_drop(drop)
             except:
                 raise Exception("can not set drop at {},{} with value {}".format(drop.x, drop.y, drop.amplitude))
-                
-    def update_one_step(self):
-        # TODO: 4 edges with special care
-        # TODO: vectorization to speed things up
-        # curr = np.copy(self.inspect())
-        # nxt = np.copy(self.inspect())
-        # for i in range(1, self.height - 1):
-        #     for j in range(1, self.width - 1):
-        #         nxt[i][j] = (curr[i-1][j]+curr[i+1][j]+curr[i][j-1]+curr[i][j+1])/2 - curr[i][j]
-        #         nxt[i][j] = nxt[i][j] * self.dampening
-        # self.value = nxt
-        # return self.inspect()
+
+    def __update_one_step(self):
 
         u_np1 = np.zeros((self.N_x, self.N_y))  # To hold u at next time step
         v_np1 = np.zeros((self.N_x, self.N_y))  # To hold v at enxt time step
@@ -263,28 +262,12 @@ class liquid:
         self.u_list.append(self.u_n)
         self.v_list.append(self.v_n)
         self.eta_list.append(self.eta_n)
-        
+
 #         return self.u_n, self.v_n, self.eta_n
         return
-        
-        
+
+
     def update_n_step(self, n=1):
         for i in range(n):
-            self.update_one_step()
-        return self.inspect()
-    
-    def record(self):
-        # TODO: store self.value in self.history everytime it gets update
-        # scipy.sparse may be needed to save memory
-        pass
-    
-    def history(n=None):
-        # TODO: retrieve records at step n
-        # if n is None, retrieve all records
-        pass
-        # if n is not None:
-        #     return self.history(n)
-        # return self.history()
-    
-        
-        
+            self.__update_one_step()
+        return
