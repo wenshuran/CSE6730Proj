@@ -91,6 +91,15 @@ class liquid:
         self.u_n[-1, :] = 0.0  # Ensuring initial u satisfy BC
         self.v_n[:, -1] = 0.0  # Ensuring initial v satisfy BC
 
+<<<<<<< HEAD
+=======
+        # Initial condition for eta.
+#         self.eta_n = np.exp(-((self.X - self.L_x / 2.7) ** 2 / (2 * (0.05E+6) ** 2) + (self.Y - self.L_y / 4) ** 2 / (2 * (0.05E+6) ** 2)))
+        self.eta_n[int(N_x/2-2):int(N_x/2+2), int(N_y/2-2):int(N_y/2+2)] = 1.0
+
+        # viz_tools.surface_plot3D(X, Y, eta_n, (X.min(), X.max()), (Y.min(), Y.max()), (eta_n.min(), eta_n.max()))
+
+>>>>>>> 219e1f537a322467d2797db0d4856d69ea0cbd00
         # Sampling variables.
         self.eta_list = list()
         self.u_list = list()
@@ -104,35 +113,36 @@ class liquid:
         self.anim_interval = 20  # How often to sample for time series
         self.sample_interval = 1000  # How often to sample for time series
         # =============== Done with setting up arrays and initial conditions ===============
-        
-        
+
+
     def clear(self):
         self.eta_n = np.zeros(self.N_x, self.N_y)
         return self.value
-    
+
     def clear_region(self, hstart, wstart, hend, wend):
         # TODO: clear rectangular region
         pass
-        
+
     def shape(self):
         return (self.N_x, self.N_y)
-    
+
     def display_2d(self):
         visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
         plt.show()
         return
-    
+<<<<<<< HEAD
+
     def display_field(self):
         quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
         plt.show()
-        return 
-    
+        return
+
     def animation_2d(self):
         eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
         plt.show()
-        return 
-    
-    def animation_3d(self):  
+        return
+
+    def animation_3d(self):
         eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
         return eta_surf_anim
 
@@ -142,13 +152,27 @@ class liquid:
         X, Y = np.meshgrid(x,y)
         pos = np.empty(X.shape + (2,))
         pos[:, :, 0] = X; pos[:, :, 1] = Y
+=======
+
+    def inspect_quiv(self):
+        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
+        plt.show()
+        return
+
+    def inspect(self):
+        visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
+#         eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
+        eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
+        quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
+        plt.show()
+>>>>>>> 219e1f537a322467d2797db0d4856d69ea0cbd00
 
         F = multivariate_normal(mean=[drop.x, drop.y],cov=[[drop.width, 0], [0, drop.width]])
         Z = F.pdf(pos) * drop.amplitude
 
         self.eta_n = np.add(self.eta_n, Z)
         return
-    
+
     def take_drops(self, drops):
         # TODO: if drops is only one drop object instead of array of drops
         # automatically handle the case
@@ -169,11 +193,11 @@ class liquid:
         /water/drop.py
         """
         for drop in drops:
-            try: 
+            try:
                 self.take_one_drop(drop)
             except:
                 raise Exception("can not set drop at {},{} with value {}".format(drop.x, drop.y, drop.amplitude))
-                
+
     def __update_one_step(self):
 
         u_np1 = np.zeros((self.N_x, self.N_y))  # To hold u at next time step
@@ -261,16 +285,12 @@ class liquid:
         self.u_list.append(self.u_n)
         self.v_list.append(self.v_n)
         self.eta_list.append(self.eta_n)
-        
+
 #         return self.u_n, self.v_n, self.eta_n
         return
-        
-        
+
+
     def update_n_step(self, n=1):
         for i in range(n):
             self.__update_one_step()
         return
-    
-    
-        
-        
