@@ -89,6 +89,7 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
     mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
         codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
+    print("MP4 file has been saved as {}.mp4".format(filename))
     return anim    # Need to return anim object to see the animation
 
 def surface_plot3D(X, Y, eta, x_lim, y_lim, z_lim):
