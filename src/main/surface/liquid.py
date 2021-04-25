@@ -120,18 +120,15 @@ class liquid:
 
     def display_2d(self):
         visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
-        plt.show()
         return
 
     def display_field(self):
         quiv_anim = visualize.velocity_animation(self.X, self.Y, self.u_list, self.v_list, self.anim_interval*self.dt, "velocity")
-        plt.show()
-        return
+        return quiv_anim
 
     def animation_2d(self):
         eta_anim = visualize.eta_animation(self.X, self.Y, self.eta_list, self.anim_interval * self.dt, "eta")
-        plt.show()
-        return
+        return eta_anim
 
     def animation_3d(self):
         eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
@@ -243,6 +240,8 @@ class liquid:
         if (self.use_sink is True):
             eta_np1[:, :] -= self.dt * self.w
         # ----------------------------- Done with eta --------------------------------
+
+        eta_np1 = eta_np1 * (1/np.max(eta_np1))
 
         self.u_n = np.copy(u_np1)  # Update u for next iteration
         self.v_n = np.copy(v_np1)  # Update v for next iteration
