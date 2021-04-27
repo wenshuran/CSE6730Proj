@@ -29,7 +29,7 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
     anim = animation.FuncAnimation(fig, update_eta,
         frames = len(eta_list), interval = 10, blit = False)
     mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv360p"])
+        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
     return anim    # Need to return anim object to see the animation
 
@@ -68,16 +68,16 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
     fig = plt.figure(figsize = (8, 8), facecolor = "white")
     ax = fig.add_subplot(111, projection='3d')
 
-    surf = ax.plot_surface(X, Y, eta_list[0], cmap = plt.cm.RdBu_r)
+    surf = ax.plot_surface(X/1000, Y/1000, eta_list[0], cmap = plt.cm.RdBu_r)
 
     def update_surf(num):
         ax.clear()
-        surf = ax.plot_surface(X/1000, Y/1000, eta_list[num], cmap = plt.cm.RdBu_r)
+        surf = ax.plot_surface(X/1000, Y/1000, eta_list[num]*10, cmap = plt.cm.RdBu_r)
         ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={}$ seconds".format(
             num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
         ax.set_xlabel("x [m]", fontname = "serif", fontsize = 14)
         ax.set_ylabel("y [m]", fontname = "serif", fontsize = 14)
-        ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
+        ax.set_zlabel("$\eta$ [cm]", fontname = "serif", fontsize = 16)
         ax.set_xlim(X.min()/1000, X.max()/1000)
         ax.set_ylim(Y.min()/1000, Y.max()/1000)
         ax.set_zlim(-0.3, 0.7)
@@ -87,7 +87,7 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
     anim = animation.FuncAnimation(fig, update_surf,
         frames = len(eta_list), interval = 10, blit = False)
     mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
-        codec = "libx264", extra_args = ["-pix_fmt", "yuv360p"])
+        codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
     print("MP4 file has been saved as {}.mp4".format(filename))
     return anim    # Need to return anim object to see the animation
