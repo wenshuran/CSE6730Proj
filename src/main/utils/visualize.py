@@ -51,7 +51,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     def update_quiver(num):
         u = u_list[num]
         v = v_list[num]
-        ax.set_title("Velocity field $\mathbf{{u}}(x,y,t)$ after t = {:.2f} hours".format(
+        ax.set_title("Velocity field $\mathbf{{u}}(x,y,t)$ after t = {} seconds".format(
             num*frame_interval/3600), fontname = "serif", fontsize = 19)
         Q.set_UVC(u[::q_int, ::q_int], v[::q_int, ::q_int])
         return Q,
@@ -74,9 +74,9 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
         ax.clear()
         surf = ax.plot_surface(X/1000, Y/1000, eta_list[num], cmap = plt.cm.RdBu_r)
         ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={}$ seconds".format(
-            num*frame_interval), fontname = "serif", fontsize = 19, y=1.04)
-        ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
-        ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
+            num*frame_interval/3600), fontname = "serif", fontsize = 19, y=1.04)
+        ax.set_xlabel("x [m]", fontname = "serif", fontsize = 14)
+        ax.set_ylabel("y [m]", fontname = "serif", fontsize = 14)
         ax.set_zlabel("$\eta$ [m]", fontname = "serif", fontsize = 16)
         ax.set_xlim(X.min()/1000, X.max()/1000)
         ax.set_ylim(Y.min()/1000, Y.max()/1000)
