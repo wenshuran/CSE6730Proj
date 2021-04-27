@@ -241,7 +241,7 @@ class liquid:
             eta_np1[:, :] -= self.dt * self.w
         # ----------------------------- Done with eta --------------------------------
 
-        eta_np1 = eta_np1 * (1/np.max(eta_np1))
+        eta_np1 = eta_np1 * (0.4/np.max(eta_np1))
 
         self.u_n = np.copy(u_np1)  # Update u for next iteration
         self.v_n = np.copy(v_np1)  # Update v for next iteration
