@@ -11,7 +11,7 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
     plt.colorbar(pmesh, orientation = "vertical")
 
     def update_eta(num):
-        ax.set_title("Surface elevation $\eta$ after t = {:.2f} hours".format(
+        ax.set_title("Surface elevation $\eta$ after t = {:.2f} seconds".format(
             num*frame_interval/3600), fontname = "serif", fontsize = 16)
         pmesh.set_array(eta_list[num][:-1, :-1].flatten())
         return pmesh,
@@ -25,7 +25,7 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
 
 def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     fig, ax = plt.subplots(figsize = (12, 12), facecolor = "white")
-    plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 days", fontname = "serif", fontsize = 19)
+    plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 seconds", fontname = "serif", fontsize = 19)
     plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
     plt.ylabel("y [km]", fontname = "serif", fontsize = 16)
     q_int = 3
@@ -57,7 +57,7 @@ def eta_animation3D(X, Y, eta_list, frame_interval, filename):
     def update_surf(num):
         ax.clear()
         surf = ax.plot_surface(X/1000, Y/1000, eta_list[num]*10, cmap = plt.cm.RdBu_r)
-        ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={}$ seconds".format(
+        ax.set_title("Surface elevation $\eta(x,y,t)$ after $t={:2f}$ seconds".format(
             num*frame_interval), fontname = "serif", fontsize = 19, y=1.04)
         ax.set_xlabel("x [km]", fontname = "serif", fontsize = 14)
         ax.set_ylabel("y [km]", fontname = "serif", fontsize = 14)
