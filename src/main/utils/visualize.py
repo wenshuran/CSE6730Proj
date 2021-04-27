@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-def eta_animation(X, Y, eta_list, frame_interval, filename):
+def surface_simulation_2d(X, Y, eta_list, frame_interval, filename):
     fig, ax = plt.subplots(1, 1)
     plt.xlabel("x [m]", fontname = "serif", fontsize = 12)
     plt.ylabel("y [m]", fontname = "serif", fontsize = 12)
@@ -23,7 +23,7 @@ def eta_animation(X, Y, eta_list, frame_interval, filename):
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
     return anim
 
-def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
+def velocity_simulation(X, Y, u_list, v_list, frame_interval, filename):
     fig, ax = plt.subplots(figsize = (12, 12), facecolor = "white")
     plt.title("Velocity field $\mathbf{u}(x,y)$ after 0.0 seconds", fontname = "serif", fontsize = 19)
     plt.xlabel("x [km]", fontname = "serif", fontsize = 16)
@@ -48,7 +48,7 @@ def velocity_animation(X, Y, u_list, v_list, frame_interval, filename):
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
     return anim
 
-def eta_animation3D(X, Y, eta_list, frame_interval, filename):
+def surface_simulation_3d(X, Y, eta_list, frame_interval, filename):
     fig = plt.figure(figsize = (12, 12), facecolor = "white")
     ax = fig.add_subplot(111, projection='3d')
 
