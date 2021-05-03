@@ -1,12 +1,15 @@
 import numpy as np
 from ..utils import visualize
+
 import matplotlib.pyplot as plt
 import ffmpeg
+
 from scipy.stats import multivariate_normal
 
 
 class liquid:
     def __init__(self, N_x=150, N_y=150):
+
 
         # --------------- Physical prameters ---------------
         self.L_x = 1E+6  # Length of domain in x-direction
@@ -107,9 +110,12 @@ class liquid:
         # =============== Done with setting up arrays and initial conditions ===============
 
 
+
     def clear(self):
         self.eta_n = np.zeros(self.N_x, self.N_y)
+
         return self.value
+
 
     def clear_region(self, hstart, wstart, hend, wend):
         # TODO: clear rectangular region
@@ -117,6 +123,7 @@ class liquid:
 
     def shape(self):
         return (self.N_x, self.N_y)
+
 
     def display_2d(self):
         visualize.pmesh_plot(self.X, self.Y, self.eta_n, "Final state of surface elevation $\eta$")
@@ -135,6 +142,7 @@ class liquid:
 
     def animation_3d(self):
         eta_surf_anim = visualize.eta_animation3D(self.X, self.Y, self.eta_list, self.anim_interval*self.dt, "eta_surface")
+
         return eta_surf_anim
 
     def take_one_drop(self, drop):
@@ -175,6 +183,7 @@ class liquid:
             except:
                 raise Exception("can not set drop at {},{} with value {}".format(drop.x, drop.y, drop.amplitude))
 
+
     def __update_one_step(self):
 
         u_np1 = np.zeros((self.N_x, self.N_y))  # To hold u at next time step
@@ -185,26 +194,19 @@ class liquid:
         u_np1[:-1, :] = self.u_n[:-1, :] - self.g * self.dt / self.dx * (self.eta_n[1:, :] - self.eta_n[:-1, :])
         v_np1[:, :-1] = self.v_n[:, :-1] - self.g * self.dt / self.dy * (self.eta_n[:, 1:] - self.eta_n[:, :-1])
 
-        # Add friction if enabled.
-        if (self.use_friction is True):
-            u_np1[:-1, :] -= self.dt * self.kappa[:-1, :] * self.u_n[:-1, :]
-            v_np1[:-1, :] -= self.dt * self.kappa[:-1, :] * self.v_n[:-1, :]
 
-        # Add wind stress if enabled.
-        if (self.use_wind is True):
-            u_np1[:-1, :] += self.dt * self.tau_x[:] / (self.rho_0 * self.H)
-            v_np1[:-1, :] += self.dt * self.tau_y[:] / (self.rho_0 * self.H)
+    def __update_one_step(self):
 
-        # Use a corrector method to add coriolis if it's enabled.
-        if (self.use_coriolis is True):
-            u_np1[:, :] = (u_np1[:, :] - self.beta_c * self.u_n[:, :] + self.alpha * self.v_n[:, :]) / (1 + self.beta_c)
-            v_np1[:, :] = (v_np1[:, :] - self.beta_c * self.v_n[:, :] - self.alpha * self.u_n[:, :]) / (1 + self.beta_c)
+        u_np1 = np.zeros((self.N_x, self.N_y))
+        v_np1 = np.zeros((self.N_x, self.N_y))
+        eta_np1 = np.zeros((self.N_x, self.N_y))
 
-        v_np1[:, -1] = 0.0  # Northern boundary condition
-        u_np1[-1, :] = 0.0  # Eastern boundary condition
-        # -------------------------- Done with u and v -----------------------------
+        u_np1[:-1, :] = self.u_n[:-1, :] - self.g * self.dt / self.dx * (self.eta_n[1:, :] - self.eta_n[:-1, :])
+        v_np1[:, :-1] = self.v_n[:, :-1] - self.g * self.dt / self.dy * (self.eta_n[:, 1:] - self.eta_n[:, :-1])
 
-        # Temporary variables (each time step) for upwind scheme in eta equation
+        v_np1[:, -1] = 0.0
+        u_np1[-1, :] = 0.0
+
         h_e = np.zeros((self.N_x, self.N_y))
         h_w = np.zeros((self.N_x, self.N_y))
         h_n = np.zeros((self.N_x, self.N_y))
@@ -212,7 +214,6 @@ class liquid:
         uhwe = np.zeros((self.N_x, self.N_y))
         vhns = np.zeros((self.N_x, self.N_y))
 
-        # --- Computing arrays needed for the upwind scheme in the eta equation.----
         h_e[:-1, :] = np.where(u_np1[:-1, :] > 0, self.eta_n[:-1, :] + self.H, self.eta_n[1:, :] + self.H)
         h_e[-1, :] = self.eta_n[-1, :] + self.H
 
@@ -230,10 +231,10 @@ class liquid:
 
         vhns[:, 0] = v_np1[:, 0] * h_n[:, 0]
         vhns[:, 1:] = v_np1[:, 1:] * h_n[:, 1:] - v_np1[:, :-1] * h_s[:, 1:]
-        # ------------------------- Upwind computations done -------------------------
 
-        # ----------------- Computing eta values at next time step -------------------
+
         eta_np1[:, :] = self.eta_n[:, :] - self.dt * (uhwe[:, :] / self.dx + vhns[:, :] / self.dy)  # Without source/sink
+
 
         # Add source term if enabled.
         if (self.use_source is True):
@@ -259,6 +260,7 @@ class liquid:
 #         print("Time: \t{:.2f} hours".format(time_step * dt / 3600))
 #         print("Step: \t{} / {}".format(time_step, max_time_step))
 #         print("Mass: \t{}\n".format(np.sum(eta_n)))
+
         self.u_list.append(self.u_n)
         self.v_list.append(self.v_n)
         self.eta_list.append(self.eta_n)
