@@ -73,7 +73,12 @@ def surface_simulation_3d(X, Y, eta_list, frame_interval, filename):
     mpeg_writer = animation.FFMpegWriter(fps = 24, bitrate = 10000,
                                          codec = "libx264", extra_args = ["-pix_fmt", "yuv420p"])
     anim.save("{}.mp4".format(filename), writer = mpeg_writer)
-    return anim
+
+
+    print("MP4 file has been saved as {}.mp4".format(filename))
+    return anim    # Need to return anim object to see the animation
+
+
 
 
 def pmesh_plot(X, Y, eta, plot_title):
